@@ -2,199 +2,189 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>像素大战 Ultimate</title>
+<title>像素大战 Final</title>
 <style>
 body {
-    margin: 0;
-    background: black;
-    color: white;
-    text-align: center;
+    margin:0;
+    background:black;
+    color:white;
+    text-align:center;
+    font-family:sans-serif;
 }
-
 canvas {
-    background: #111;
-    display: block;
-    margin: 20px auto;
-    border: 2px solid white;
+    background:#111;
+    border:2px solid white;
 }
-
 button {
-    padding: 10px 20px;
-    font-size: 16px;
+    padding:10px 20px;
+    font-size:16px;
+    margin:10px;
 }
 </style>
 </head>
 <body>
 
-<h2>🔥 像素大战 Ultimate</h2>
-<p>A/D移动 W跳跃 空格攻击 J发波</p>
+<h1>🔥 像素大战 FINAL</h1>
 
-<button onclick="startGame()">开始游戏</button>
+<div id="menu">
+    <button onclick="startGame()">开始游戏</button>
+</div>
 
 <canvas id="game" width="800" height="400"></canvas>
+
+<div id="end" style="display:none;">
+    <h2 id="result"></h2>
+    <button onclick="startGame()">重新开始</button>
+</div>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let gameRunning = false;
+let state = "menu";
 
-let player, enemy, bullets, keys;
+let player, boss, bullets, enemyBullets;
+let keys = {};
+let skillCD = 0;
 
-function resetGame() {
-    player = {
-        x: 100,
-        y: 300,
-        w: 40,
-        h: 40,
-        vx: 0,
-        vy: 0,
-        onGround: true,
-        hp: 5
-    };
-
-    enemy = {
-        x: 600,
-        y: 300,
-        w: 40,
-        h: 40,
-        hp: 5
-    };
-
+function reset() {
+    player = { x:100, y:300, w:30, h:30, hp:100 };
+    boss = { x:600, y:200, w:60, h:60, hp:30 };
     bullets = [];
-    keys = {};
+    enemyBullets = [];
+    skillCD = 0;
 }
 
 function startGame() {
-    resetGame();
-    gameRunning = true;
+    reset();
+    state = "game";
+    document.getElementById("menu").style.display="none";
+    document.getElementById("end").style.display="none";
 }
 
-document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
-document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+document.addEventListener("keydown", e=>{
+    keys[e.key]=true;
 
-function shoot() {
-    bullets.push({
-        x: player.x + 40,
-        y: player.y + 20,
-        vx: 6
+    if(state!=="game") return;
+
+    if(e.code==="Space"){
+        bullets.push({x:player.x+15,y:player.y});
+    }
+
+    if(e.key==="j" && skillCD<=0){
+        for(let i=-2;i<=2;i++){
+            bullets.push({x:player.x+15+i*10,y:player.y});
+        }
+        skillCD=60;
+    }
+});
+
+document.addEventListener("keyup", e=>{
+    keys[e.key]=false;
+});
+
+function update(){
+    if(state!=="game") return;
+
+    if(keys["a"]) player.x-=5;
+    if(keys["d"]) player.x+=5;
+
+    bullets.forEach(b=>b.y-=6);
+
+    if(boss.x>player.x) boss.x-=1.5;
+    else boss.x+=1.5;
+
+    if(Math.random()<0.03){
+        enemyBullets.push({x:boss.x+30,y:boss.y+50});
+    }
+
+    if(Math.random()<0.01){
+        for(let i=0;i<8;i++){
+            enemyBullets.push({
+                x:boss.x+30,
+                y:boss.y+30,
+                vx:Math.cos(i)*3,
+                vy:Math.sin(i)*3
+            });
+        }
+    }
+
+    enemyBullets.forEach(b=>{
+        b.y+=b.vy||3;
+        b.x+=b.vx||0;
     });
-}
 
-let shootCooldown = 0;
-
-function update() {
-    if (!gameRunning) return;
-
-    // 移动
-    if (keys["a"]) player.x -= 5;
-    if (keys["d"]) player.x += 5;
-
-    // 跳跃
-    if (keys["w"] && player.onGround) {
-        player.vy = -10;
-        player.onGround = false;
-    }
-
-    // 重力
-    player.vy += 0.5;
-    player.y += player.vy;
-
-    if (player.y >= 300) {
-        player.y = 300;
-        player.vy = 0;
-        player.onGround = true;
-    }
-
-    // 攻击
-    if (keys[" "] && Math.abs(player.x - enemy.x) < 60) {
-        enemy.hp -= 0.1;
-    }
-
-    // 发波
-    if (keys["j"] && shootCooldown <= 0) {
-        shoot();
-        shootCooldown = 20;
-    }
-
-    shootCooldown--;
-
-    // 子弹移动
-    bullets.forEach(b => {
-        b.x += b.vx;
-
-        if (Math.abs(b.x - enemy.x) < 20) {
-            enemy.hp -= 1;
-            b.hit = true;
+    bullets.forEach((b,i)=>{
+        if(b.x>boss.x && b.x<boss.x+boss.w &&
+           b.y>boss.y && b.y<boss.y+boss.h){
+            boss.hp--;
+            bullets.splice(i,1);
         }
     });
 
-    bullets = bullets.filter(b => !b.hit && b.x < 800);
-
-    // 敌人AI
-    if (enemy.x > player.x) enemy.x -= 2;
-    else enemy.x += 2;
-
-    if (Math.random() < 0.02) {
-        if (Math.abs(enemy.x - player.x) < 60) {
-            player.hp -= 1;
+    enemyBullets.forEach((b,i)=>{
+        if(b.x>player.x && b.x<player.x+player.w &&
+           b.y>player.y && b.y<player.y+player.h){
+            player.hp-=5;
+            enemyBullets.splice(i,1);
         }
-    }
-}
-
-function drawBar(x, y, hp, color) {
-    ctx.fillStyle = "gray";
-    ctx.fillRect(x, y, 50, 5);
-
-    ctx.fillStyle = color;
-    ctx.fillRect(x, y, hp * 10, 5);
-}
-
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    if (!gameRunning) {
-        ctx.fillText("点击上方按钮开始游戏", 300, 200);
-        return;
-    }
-
-    // 玩家
-    ctx.fillStyle = "cyan";
-    ctx.fillRect(player.x, player.y, player.w, player.h);
-
-    // 敌人
-    ctx.fillStyle = "red";
-    ctx.fillRect(enemy.x, enemy.y, enemy.w, enemy.h);
-
-    // 子弹
-    ctx.fillStyle = "yellow";
-    bullets.forEach(b => {
-        ctx.fillRect(b.x, b.y, 10, 5);
     });
 
-    // 血条
-    drawBar(player.x, player.y - 10, player.hp, "cyan");
-    drawBar(enemy.x, enemy.y - 10, enemy.hp, "red");
+    skillCD--;
 
-    // 胜负
-    if (enemy.hp <= 0) {
-        ctx.fillText("🎉 你赢了！", 350, 200);
-        gameRunning = false;
+    if(player.hp<=0){
+        state="lose";
+        showEnd("💀 你输了！");
     }
 
-    if (player.hp <= 0) {
-        ctx.fillText("💀 你输了！", 350, 200);
-        gameRunning = false;
+    if(boss.hp<=0){
+        state="win";
+        showEnd("🎉 你赢了！");
     }
 }
 
-function gameLoop() {
+function showEnd(text){
+    document.getElementById("end").style.display="block";
+    document.getElementById("result").innerText=text;
+}
+
+function drawBar(x,y,hp,max,color){
+    ctx.fillStyle="gray";
+    ctx.fillRect(x,y,100,10);
+    ctx.fillStyle=color;
+    ctx.fillRect(x,y,(hp/max)*100,10);
+}
+
+function draw(){
+    ctx.clearRect(0,0,800,400);
+
+    if(state!=="game") return;
+
+    ctx.fillStyle="cyan";
+    ctx.fillRect(player.x,player.y,player.w,player.h);
+
+    ctx.fillStyle="purple";
+    ctx.fillRect(boss.x,boss.y,boss.w,boss.h);
+
+    ctx.fillStyle="yellow";
+    bullets.forEach(b=>ctx.fillRect(b.x,b.y,5,10));
+
+    ctx.fillStyle="orange";
+    enemyBullets.forEach(b=>ctx.fillRect(b.x,b.y,5,10));
+
+    drawBar(10,10,player.hp,100,"cyan");
+    drawBar(600,10,boss.hp,30,"purple");
+
+    ctx.fillText("技能CD:"+Math.max(0,skillCD),10,40);
+}
+
+function loop(){
     update();
     draw();
-    requestAnimationFrame(gameLoop);
+    requestAnimationFrame(loop);
 }
 
-gameLoop();
+loop();
 </script>
 
 </body>
