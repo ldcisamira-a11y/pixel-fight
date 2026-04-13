@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>像素大战 v2</title>
+<title>像素大战 Ultimate</title>
 <style>
 body {
     margin: 0;
@@ -17,12 +17,19 @@ canvas {
     margin: 20px auto;
     border: 2px solid white;
 }
+
+button {
+    padding: 10px 20px;
+    font-size: 16px;
+}
 </style>
 </head>
 <body>
 
-<h2>🔥 像素大战 v2</h2>
-<p>A/D移动 空格攻击</p>
+<h2>🔥 像素大战 Ultimate</h2>
+<p>A/D移动 W跳跃 空格攻击 J发波</p>
+
+<button onclick="startGame()">开始游戏</button>
 
 <canvas id="game" width="800" height="400"></canvas>
 
@@ -30,61 +37,109 @@ canvas {
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let player = {
-    x: 100,
-    y: 300,
-    w: 40,
-    h: 40,
-    color: "cyan",
-    hp: 5
-};
+let gameRunning = false;
 
-let enemy = {
-    x: 600,
-    y: 300,
-    w: 40,
-    h: 40,
-    color: "red",
-    hp: 5
-};
+let player, enemy, bullets, keys;
 
-let effects = [];
+function resetGame() {
+    player = {
+        x: 100,
+        y: 300,
+        w: 40,
+        h: 40,
+        vx: 0,
+        vy: 0,
+        onGround: true,
+        hp: 5
+    };
 
-let keys = {};
+    enemy = {
+        x: 600,
+        y: 300,
+        w: 40,
+        h: 40,
+        hp: 5
+    };
 
-document.addEventListener("keydown", e => keys[e.key] = true);
-document.addEventListener("keyup", e => keys[e.key] = false);
-
-function attack(attacker, target) {
-    if (Math.abs(attacker.x - target.x) < 60) {
-        target.hp -= 1;
-
-        // 打击特效
-        effects.push({
-            x: target.x + 20,
-            y: target.y,
-            life: 10
-        });
-    }
+    bullets = [];
+    keys = {};
 }
 
+function startGame() {
+    resetGame();
+    gameRunning = true;
+}
+
+document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+function shoot() {
+    bullets.push({
+        x: player.x + 40,
+        y: player.y + 20,
+        vx: 6
+    });
+}
+
+let shootCooldown = 0;
+
 function update() {
+    if (!gameRunning) return;
+
+    // 移动
     if (keys["a"]) player.x -= 5;
     if (keys["d"]) player.x += 5;
 
-    if (keys[" "]) attack(player, enemy);
+    // 跳跃
+    if (keys["w"] && player.onGround) {
+        player.vy = -10;
+        player.onGround = false;
+    }
+
+    // 重力
+    player.vy += 0.5;
+    player.y += player.vy;
+
+    if (player.y >= 300) {
+        player.y = 300;
+        player.vy = 0;
+        player.onGround = true;
+    }
+
+    // 攻击
+    if (keys[" "] && Math.abs(player.x - enemy.x) < 60) {
+        enemy.hp -= 0.1;
+    }
+
+    // 发波
+    if (keys["j"] && shootCooldown <= 0) {
+        shoot();
+        shootCooldown = 20;
+    }
+
+    shootCooldown--;
+
+    // 子弹移动
+    bullets.forEach(b => {
+        b.x += b.vx;
+
+        if (Math.abs(b.x - enemy.x) < 20) {
+            enemy.hp -= 1;
+            b.hit = true;
+        }
+    });
+
+    bullets = bullets.filter(b => !b.hit && b.x < 800);
 
     // 敌人AI
     if (enemy.x > player.x) enemy.x -= 2;
     else enemy.x += 2;
 
     if (Math.random() < 0.02) {
-        attack(enemy, player);
+        if (Math.abs(enemy.x - player.x) < 60) {
+            player.hp -= 1;
+        }
     }
-
-    // 更新特效
-    effects.forEach(e => e.life--);
-    effects = effects.filter(e => e.life > 0);
 }
 
 function drawBar(x, y, hp, color) {
@@ -98,31 +153,38 @@ function drawBar(x, y, hp, color) {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    if (!gameRunning) {
+        ctx.fillText("点击上方按钮开始游戏", 300, 200);
+        return;
+    }
+
     // 玩家
-    ctx.fillStyle = player.color;
+    ctx.fillStyle = "cyan";
     ctx.fillRect(player.x, player.y, player.w, player.h);
 
     // 敌人
-    ctx.fillStyle = enemy.color;
+    ctx.fillStyle = "red";
     ctx.fillRect(enemy.x, enemy.y, enemy.w, enemy.h);
+
+    // 子弹
+    ctx.fillStyle = "yellow";
+    bullets.forEach(b => {
+        ctx.fillRect(b.x, b.y, 10, 5);
+    });
 
     // 血条
     drawBar(player.x, player.y - 10, player.hp, "cyan");
     drawBar(enemy.x, enemy.y - 10, enemy.hp, "red");
 
-    // 特效
-    effects.forEach(e => {
-        ctx.fillStyle = "yellow";
-        ctx.fillRect(e.x, e.y, 10, 10);
-    });
-
     // 胜负
     if (enemy.hp <= 0) {
         ctx.fillText("🎉 你赢了！", 350, 200);
+        gameRunning = false;
     }
 
     if (player.hp <= 0) {
         ctx.fillText("💀 你输了！", 350, 200);
+        gameRunning = false;
     }
 }
 
