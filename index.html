@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>像素大战</title>
+<title>像素大战 v2</title>
 <style>
 body {
     margin: 0;
@@ -21,7 +21,7 @@ canvas {
 </head>
 <body>
 
-<h2>像素大战</h2>
+<h2>🔥 像素大战 v2</h2>
 <p>A/D移动 空格攻击</p>
 
 <canvas id="game" width="800" height="400"></canvas>
@@ -35,7 +35,8 @@ let player = {
     y: 300,
     w: 40,
     h: 40,
-    color: "cyan"
+    color: "cyan",
+    hp: 5
 };
 
 let enemy = {
@@ -44,28 +45,54 @@ let enemy = {
     w: 40,
     h: 40,
     color: "red",
-    hp: 3
+    hp: 5
 };
+
+let effects = [];
 
 let keys = {};
 
 document.addEventListener("keydown", e => keys[e.key] = true);
 document.addEventListener("keyup", e => keys[e.key] = false);
 
+function attack(attacker, target) {
+    if (Math.abs(attacker.x - target.x) < 60) {
+        target.hp -= 1;
+
+        // 打击特效
+        effects.push({
+            x: target.x + 20,
+            y: target.y,
+            life: 10
+        });
+    }
+}
+
 function update() {
     if (keys["a"]) player.x -= 5;
     if (keys["d"]) player.x += 5;
 
-    // 攻击
-    if (keys[" "]) {
-        if (Math.abs(player.x - enemy.x) < 50) {
-            enemy.hp -= 0.1;
-        }
+    if (keys[" "]) attack(player, enemy);
+
+    // 敌人AI
+    if (enemy.x > player.x) enemy.x -= 2;
+    else enemy.x += 2;
+
+    if (Math.random() < 0.02) {
+        attack(enemy, player);
     }
 
-    // 敌人简单AI
-    if (enemy.x > player.x) enemy.x -= 1;
-    else enemy.x += 1;
+    // 更新特效
+    effects.forEach(e => e.life--);
+    effects = effects.filter(e => e.life > 0);
+}
+
+function drawBar(x, y, hp, color) {
+    ctx.fillStyle = "gray";
+    ctx.fillRect(x, y, 50, 5);
+
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, hp * 10, 5);
 }
 
 function draw() {
@@ -79,12 +106,23 @@ function draw() {
     ctx.fillStyle = enemy.color;
     ctx.fillRect(enemy.x, enemy.y, enemy.w, enemy.h);
 
-    // 血量
-    ctx.fillStyle = "white";
-    ctx.fillText("敌人HP: " + Math.floor(enemy.hp), 10, 20);
+    // 血条
+    drawBar(player.x, player.y - 10, player.hp, "cyan");
+    drawBar(enemy.x, enemy.y - 10, enemy.hp, "red");
 
+    // 特效
+    effects.forEach(e => {
+        ctx.fillStyle = "yellow";
+        ctx.fillRect(e.x, e.y, 10, 10);
+    });
+
+    // 胜负
     if (enemy.hp <= 0) {
-        ctx.fillText("你赢了！🎉", 350, 200);
+        ctx.fillText("🎉 你赢了！", 350, 200);
+    }
+
+    if (player.hp <= 0) {
+        ctx.fillText("💀 你输了！", 350, 200);
     }
 }
 
