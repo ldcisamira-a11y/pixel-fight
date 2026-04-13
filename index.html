@@ -1,128 +1,101 @@
 <!DOCTYPE html>
-<html>
-<body style="margin:0;background:black;color:white;text-align:center;">
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>像素大战</title>
+<style>
+body {
+    margin: 0;
+    background: black;
+    color: white;
+    text-align: center;
+}
 
-<div id="menu">
-  <h1>🔥 Pixel Fight</h1>
-  <input id="name" placeholder="输入名字">
-  <br><br>
-  <button onclick="start()">开始游戏</button>
-</div>
+canvas {
+    background: #111;
+    display: block;
+    margin: 20px auto;
+    border: 2px solid white;
+}
+</style>
+</head>
+<body>
 
-<canvas id="game" width="800" height="400" style="display:none;"></canvas>
+<h2>像素大战</h2>
+<p>A/D移动 空格攻击</p>
+
+<canvas id="game" width="800" height="400"></canvas>
 
 <script>
-const ws = new WebSocket("ws://127.0.0.1:5000");
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
-
-let players={}, leaderboard=[], platforms=[];
-let keys={}, myName="";
-
-document.addEventListener('keydown', e => keys[e.key]=true);
-document.addEventListener('keyup', e => keys[e.key]=false);
-
-function start(){
-  myName = document.getElementById("name").value || "玩家";
-  document.getElementById("menu").style.display="none";
-  canvas.style.display="block";
-  ws.send(JSON.stringify({name:myName}));
-}
-
-ws.onmessage = (msg)=>{
-  const data = JSON.parse(msg.data);
-  players=data.players;
-  leaderboard=data.leaderboard;
-  platforms=data.platforms;
+let player = {
+    x: 100,
+    y: 300,
+    w: 40,
+    h: 40,
+    color: "cyan"
 };
 
-function sendInput(){
-  if(ws.readyState===1){
-    ws.send(JSON.stringify({
-      left:keys['a'],
-      right:keys['d'],
-      jump:keys['w'],
-      attack:keys['j'],
-      skill:keys['l']
-    }));
-  }
-}
+let enemy = {
+    x: 600,
+    y: 300,
+    w: 40,
+    h: 40,
+    color: "red",
+    hp: 3
+};
 
-// 像素人物
-function drawPlayer(p){
-  let color = p.isAI ? "orange" : "white";
-  let t = Date.now()/120;
+let keys = {};
 
-  ctx.fillStyle = color;
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
 
-  // 头
-  ctx.fillRect(p.x+8, p.y, 14, 14);
+function update() {
+    if (keys["a"]) player.x -= 5;
+    if (keys["d"]) player.x += 5;
 
-  // 身体
-  ctx.fillRect(p.x+10, p.y+14, 10, 20);
-
-  // 左手
-  ctx.fillRect(p.x, p.y+16, 10, 4);
-
-  // 右手（攻击）
-  if(keys['j']){
-    ctx.fillRect(p.x+20, p.y+16, 14, 4);
-  }else{
-    ctx.fillRect(p.x+20, p.y+16, 10, 4);
-  }
-
-  // 腿（动画）
-  ctx.fillRect(p.x+10, p.y+34 + Math.sin(t)*2, 4, 12);
-  ctx.fillRect(p.x+16, p.y+34 - Math.sin(t)*2, 4, 12);
-}
-
-function draw(){
-  ctx.clearRect(0,0,800,400);
-
-  // 地图
-  ctx.fillStyle="gray";
-  platforms.forEach(p=>ctx.fillRect(p.x,p.y,p.w,p.h));
-
-  for(let id in players){
-    let p = players[id];
-
-    drawPlayer(p);
-
-    // 血条
-    ctx.fillStyle="red";
-    ctx.fillRect(p.x,p.y-10,30,5);
-
-    ctx.fillStyle="lime";
-    ctx.fillRect(p.x,p.y-10,30*(p.hp/100),5);
-
-    // 名字
-    ctx.fillStyle="white";
-    ctx.fillText(p.name || "玩家",p.x,p.y-20);
-
-    // 技能特效
-    if(keys['l']){
-      ctx.fillStyle="cyan";
-      ctx.fillRect(p.x-20,p.y+10,80,10);
+    // 攻击
+    if (keys[" "]) {
+        if (Math.abs(player.x - enemy.x) < 50) {
+            enemy.hp -= 0.1;
+        }
     }
-  }
 
-  // 排行榜
-  ctx.fillText("排行榜",650,20);
-  leaderboard.forEach((p,i)=>{
-    ctx.fillText((i+1)+"."+ (p.name||"玩家")+" "+p.score,650,40+i*20);
-  });
-
-  ctx.fillText("A/D移动 W跳 J攻击 L技能",10,20);
+    // 敌人简单AI
+    if (enemy.x > player.x) enemy.x -= 1;
+    else enemy.x += 1;
 }
 
-function loop(){
-  sendInput();
-  draw();
-  requestAnimationFrame(loop);
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 玩家
+    ctx.fillStyle = player.color;
+    ctx.fillRect(player.x, player.y, player.w, player.h);
+
+    // 敌人
+    ctx.fillStyle = enemy.color;
+    ctx.fillRect(enemy.x, enemy.y, enemy.w, enemy.h);
+
+    // 血量
+    ctx.fillStyle = "white";
+    ctx.fillText("敌人HP: " + Math.floor(enemy.hp), 10, 20);
+
+    if (enemy.hp <= 0) {
+        ctx.fillText("你赢了！🎉", 350, 200);
+    }
 }
 
-loop();
+function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
 </script>
+
 </body>
 </html>
