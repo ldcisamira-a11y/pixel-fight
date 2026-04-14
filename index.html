@@ -2,24 +2,16 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>角色大战 V5</title>
+<title>角色大战 V6</title>
 <style>
-body{
-    background:black;
-    color:white;
-    text-align:center;
-    font-family:sans-serif;
-}
-canvas{
-    background:#111;
-    border:2px solid white;
-}
+body{background:black;color:white;text-align:center}
+canvas{background:#111;border:2px solid white}
 </style>
 </head>
 
 <body>
 
-<h1>⚔️ 角色大战</h1>
+<h1>⚔️ 角色大战 V6</h1>
 <p>A / D 移动，J 攻击</p>
 
 <canvas id="game" width="800" height="400"></canvas>
@@ -28,45 +20,22 @@ canvas{
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let player = {x:100,y:260,hp:120};
-let enemy = {x:600,y:260,hp:100};
+let player = {x:100,y:260,hp:120,attack:false,anim:0};
+let enemy = {x:600,y:260,hp:100,anim:0};
 
 let keys = {};
-
-// 🎨 创建“角色图片”（关键！！不用外链）
-function createCharacter(color){
-    let c = document.createElement("canvas");
-    c.width = 40;
-    c.height = 60;
-    let g = c.getContext("2d");
-
-    // 身体
-    g.fillStyle = color;
-    g.fillRect(10,20,20,30);
-
-    // 头
-    g.fillStyle = "#ffe0bd";
-    g.fillRect(12,5,16,15);
-
-    // 眼睛
-    g.fillStyle = "black";
-    g.fillRect(15,10,2,2);
-    g.fillRect(23,10,2,2);
-
-    return c;
-}
-
-// ✅ 真“人物图像”
-let playerImg = createCharacter("#00ffff");
-let enemyImg = createCharacter("#ff0000");
 
 document.addEventListener("keydown", e=>{
     keys[e.key]=true;
 
     if(e.key==="j"){
-        if(Math.abs(player.x - enemy.x)<60){
+        player.attack = true;
+
+        if(Math.abs(player.x - enemy.x)<70){
             enemy.hp -= 10;
         }
+
+        setTimeout(()=>player.attack=false,150);
     }
 });
 
@@ -74,21 +43,44 @@ document.addEventListener("keyup", e=>{
     keys[e.key]=false;
 });
 
-function update(){
+// 🎨 角色绘制（带动画）
+function drawCharacter(p, color){
 
-    if(keys["a"]) player.x -= 3;
-    if(keys["d"]) player.x += 3;
+    let float = Math.sin(p.anim) * 3;
 
-    // 敌人追踪
-    if(enemy.x > player.x) enemy.x -= 1;
-    else enemy.x += 1;
+    // 身体
+    ctx.fillStyle = color;
+    ctx.fillRect(p.x, p.y + float, 20, 30);
 
-    // 攻击
-    if(Math.abs(enemy.x - player.x) < 50){
-        player.hp -= 0.3;
+    // 头
+    ctx.fillStyle = "#ffe0bd";
+    ctx.fillRect(p.x+2, p.y-10 + float, 16, 15);
+
+    // 眼睛
+    ctx.fillStyle = "black";
+    ctx.fillRect(p.x+5, p.y-5 + float, 2, 2);
+    ctx.fillRect(p.x+12, p.y-5 + float, 2, 2);
+
+    // 手（攻击动画）
+    if(p.attack){
+        ctx.fillStyle="#ffe0bd";
+        ctx.fillRect(p.x+20, p.y+5 + float, 15,5);
     }
 }
 
+// 👾 敌人
+function drawEnemy(e){
+
+    let float = Math.sin(e.anim) * 3;
+
+    ctx.fillStyle = "red";
+    ctx.fillRect(e.x, e.y + float, 20, 30);
+
+    ctx.fillStyle = "#ffe0bd";
+    ctx.fillRect(e.x+2, e.y-10 + float, 16, 15);
+}
+
+// 🎯 血条
 function drawBar(x,y,hp,color){
     ctx.fillStyle="gray";
     ctx.fillRect(x,y,120,10);
@@ -97,13 +89,32 @@ function drawBar(x,y,hp,color){
     ctx.fillRect(x,y,hp,10);
 }
 
+// 🧠 更新
+function update(){
+
+    if(keys["a"]) player.x -= 3;
+    if(keys["d"]) player.x += 3;
+
+    // 动画计数
+    player.anim += 0.1;
+    enemy.anim += 0.1;
+
+    // 敌人AI
+    if(enemy.x > player.x) enemy.x -= 1;
+    else enemy.x += 1;
+
+    if(Math.abs(enemy.x - player.x) < 50){
+        player.hp -= 0.3;
+    }
+}
+
+// 🎨 绘制
 function draw(){
 
     ctx.clearRect(0,0,800,400);
 
-    // 画人物（不是方块了！）
-    ctx.drawImage(playerImg, player.x, player.y);
-    ctx.drawImage(enemyImg, enemy.x, enemy.y);
+    drawCharacter(player, "#00ffff");
+    drawEnemy(enemy);
 
     drawBar(10,10,player.hp,"cyan");
     drawBar(650,10,enemy.hp,"red");
