@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>像素大战 · 角色版</title>
+<title>角色大战 V5</title>
 <style>
 body{
     background:black;
@@ -14,85 +14,58 @@ canvas{
     background:#111;
     border:2px solid white;
 }
-
-/* 卡片 */
-.card{
-    display:inline-block;
-    margin:20px;
-    padding:10px;
-    border:2px solid white;
-    cursor:pointer;
-    width:120px;
-}
-.card:hover{
-    background:#222;
-}
 </style>
 </head>
 
 <body>
 
-<h1>⚔️ 角色选择</h1>
-
-<div id="menu">
-    <button onclick="startSelect()">开始游戏</button>
-</div>
-
-<div id="select" style="display:none;">
-    <h2>选择角色</h2>
-
-    <div class="card" onclick="choose('warrior')">🛡 战士</div>
-    <div class="card" onclick="choose('assassin')">⚡ 刺客</div>
-    <div class="card" onclick="choose('tank')">🧱 坦克</div>
-</div>
+<h1>⚔️ 角色大战</h1>
+<p>A / D 移动，J 攻击</p>
 
 <canvas id="game" width="800" height="400"></canvas>
-
-<div id="end" style="display:none;">
-    <h2 id="result"></h2>
-    <button onclick="location.reload()">重新开始</button>
-</div>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let state="menu";
-let player, enemy;
+let player = {x:100,y:260,hp:120};
+let enemy = {x:600,y:260,hp:100};
 
-function startSelect(){
-    state="select";
-    document.getElementById("menu").style.display="none";
-    document.getElementById("select").style.display="block";
+let keys = {};
+
+// 🎨 创建“角色图片”（关键！！不用外链）
+function createCharacter(color){
+    let c = document.createElement("canvas");
+    c.width = 40;
+    c.height = 60;
+    let g = c.getContext("2d");
+
+    // 身体
+    g.fillStyle = color;
+    g.fillRect(10,20,20,30);
+
+    // 头
+    g.fillStyle = "#ffe0bd";
+    g.fillRect(12,5,16,15);
+
+    // 眼睛
+    g.fillStyle = "black";
+    g.fillRect(15,10,2,2);
+    g.fillRect(23,10,2,2);
+
+    return c;
 }
 
-// 🎮 角色创建（不用图片，直接画）
-function choose(type){
-
-    if(type==="warrior"){
-        player = {x:100,y:260,hp:120,damage:10,type:"warrior"};
-    }
-    if(type==="assassin"){
-        player = {x:100,y:260,hp:80,damage:20,type:"assassin"};
-    }
-    if(type==="tank"){
-        player = {x:100,y:260,hp:160,damage:8,type:"tank"};
-    }
-
-    enemy = {x:600,y:260,hp:100};
-
-    state="game";
-    document.getElementById("select").style.display="none";
-}
-
-let keys={};
+// ✅ 真“人物图像”
+let playerImg = createCharacter("#00ffff");
+let enemyImg = createCharacter("#ff0000");
 
 document.addEventListener("keydown", e=>{
     keys[e.key]=true;
 
-    if(state==="game" && e.key==="j"){
+    if(e.key==="j"){
         if(Math.abs(player.x - enemy.x)<60){
-            enemy.hp -= player.damage;
+            enemy.hp -= 10;
         }
     }
 });
@@ -101,47 +74,7 @@ document.addEventListener("keyup", e=>{
     keys[e.key]=false;
 });
 
-// 🎨 绘制角色（真正“模型感”）
-function drawPlayer(p){
-
-    if(p.type==="warrior"){
-        ctx.fillStyle="#3498db";
-        ctx.fillRect(p.x, p.y, 40, 50);
-
-        ctx.fillStyle="#2980b9";
-        ctx.fillRect(p.x+10, p.y-15, 20, 15);
-    }
-
-    if(p.type==="assassin"){
-        ctx.fillStyle="#9b59b6";
-        ctx.fillRect(p.x, p.y, 30, 45);
-
-        ctx.fillStyle="#8e44ad";
-        ctx.fillRect(p.x+5, p.y-10, 20, 10);
-    }
-
-    if(p.type==="tank"){
-        ctx.fillStyle="#2ecc71";
-        ctx.fillRect(p.x, p.y, 50, 60);
-
-        ctx.fillStyle="#27ae60";
-        ctx.fillRect(p.x+15, p.y-15, 20, 15);
-    }
-}
-
-// 👾 敌人
-function drawEnemy(e){
-    ctx.fillStyle="red";
-    ctx.fillRect(e.x, e.y, 40, 50);
-
-    ctx.fillStyle="darkred";
-    ctx.fillRect(e.x+10, e.y-15, 20, 15);
-}
-
-// 🧠 更新逻辑
 function update(){
-
-    if(state!=="game") return;
 
     if(keys["a"]) player.x -= 3;
     if(keys["d"]) player.x += 3;
@@ -150,21 +83,12 @@ function update(){
     if(enemy.x > player.x) enemy.x -= 1;
     else enemy.x += 1;
 
-    // 敌人攻击
+    // 攻击
     if(Math.abs(enemy.x - player.x) < 50){
         player.hp -= 0.3;
     }
-
-    // 判定
-    if(player.hp <= 0){
-        endGame("💀 你输了");
-    }
-    if(enemy.hp <= 0){
-        endGame("🎉 你赢了");
-    }
 }
 
-// 🎯 血条
 function drawBar(x,y,hp,color){
     ctx.fillStyle="gray";
     ctx.fillRect(x,y,120,10);
@@ -173,28 +97,30 @@ function drawBar(x,y,hp,color){
     ctx.fillRect(x,y,hp,10);
 }
 
-// 🎨 绘制
 function draw(){
 
     ctx.clearRect(0,0,800,400);
 
-    if(state!=="game") return;
-
-    drawPlayer(player);
-    drawEnemy(enemy);
+    // 画人物（不是方块了！）
+    ctx.drawImage(playerImg, player.x, player.y);
+    ctx.drawImage(enemyImg, enemy.x, enemy.y);
 
     drawBar(10,10,player.hp,"cyan");
     drawBar(650,10,enemy.hp,"red");
+
+    if(player.hp<=0){
+        ctx.fillStyle="red";
+        ctx.font="30px sans-serif";
+        ctx.fillText("💀 你输了",330,200);
+    }
+
+    if(enemy.hp<=0){
+        ctx.fillStyle="yellow";
+        ctx.font="30px sans-serif";
+        ctx.fillText("🎉 你赢了",330,200);
+    }
 }
 
-// 🏁 结束
-function endGame(text){
-    state="end";
-    document.getElementById("end").style.display="block";
-    document.getElementById("result").innerText=text;
-}
-
-// 🔁 循环
 function loop(){
     update();
     draw();
