@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>角色大战 V6</title>
+<title>像素大战 V7</title>
 <style>
 body{background:black;color:white;text-align:center}
 canvas{background:#111;border:2px solid white}
@@ -11,8 +11,8 @@ canvas{background:#111;border:2px solid white}
 
 <body>
 
-<h1>⚔️ 角色大战 V6</h1>
-<p>A / D 移动，J 攻击</p>
+<h1>🔥 战斗系统 V7</h1>
+<p>A/D移动 | J攻击 | K冲刺技能</p>
 
 <canvas id="game" width="800" height="400"></canvas>
 
@@ -20,67 +20,102 @@ canvas{background:#111;border:2px solid white}
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let player = {x:100,y:260,hp:120,attack:false,anim:0};
-let enemy = {x:600,y:260,hp:100,anim:0};
+let player = {
+    x:100,y:260,hp:120,
+    attack:false,
+    dash:false,
+    dashCD:0,
+    trail:[],
+    anim:0
+};
 
+let enemy = {
+    x:600,y:260,hp:120,
+    dashCD:0,
+    anim:0
+};
+
+let shake = 0;
+let effects = [];
 let keys = {};
 
 document.addEventListener("keydown", e=>{
     keys[e.key]=true;
 
+    // 普攻
     if(e.key==="j"){
-        player.attack = true;
+        player.attack=true;
 
         if(Math.abs(player.x - enemy.x)<70){
-            enemy.hp -= 10;
+            enemy.hp-=10;
+            shake=10;
+            effects.push({x:enemy.x,y:enemy.y,type:"hit"});
         }
 
         setTimeout(()=>player.attack=false,150);
     }
+
+    // 冲刺技能
+    if(e.key==="k" && player.dashCD<=0){
+        player.dash=true;
+        player.dashCD=120;
+
+        let dir = player.x < enemy.x ? 1 : -1;
+        player.x += dir*120;
+
+        enemy.hp -= 15;
+        shake=15;
+
+        for(let i=0;i<5;i++){
+            effects.push({x:player.x-i*20,y:player.y,type:"dash"});
+        }
+
+        setTimeout(()=>player.dash=false,200);
+    }
 });
 
-document.addEventListener("keyup", e=>{
-    keys[e.key]=false;
-});
+document.addEventListener("keyup", e=>keys[e.key]=false);
 
-// 🎨 角色绘制（带动画）
-function drawCharacter(p, color){
+function drawCharacter(p,color){
+    let float=Math.sin(p.anim)*3;
 
-    let float = Math.sin(p.anim) * 3;
+    ctx.fillStyle=color;
+    ctx.fillRect(p.x,p.y+float,20,30);
 
-    // 身体
-    ctx.fillStyle = color;
-    ctx.fillRect(p.x, p.y + float, 20, 30);
+    ctx.fillStyle="#ffe0bd";
+    ctx.fillRect(p.x+2,p.y-10+float,16,15);
 
-    // 头
-    ctx.fillStyle = "#ffe0bd";
-    ctx.fillRect(p.x+2, p.y-10 + float, 16, 15);
-
-    // 眼睛
-    ctx.fillStyle = "black";
-    ctx.fillRect(p.x+5, p.y-5 + float, 2, 2);
-    ctx.fillRect(p.x+12, p.y-5 + float, 2, 2);
-
-    // 手（攻击动画）
     if(p.attack){
-        ctx.fillStyle="#ffe0bd";
-        ctx.fillRect(p.x+20, p.y+5 + float, 15,5);
+        ctx.fillStyle="yellow";
+        ctx.fillRect(p.x+20,p.y+5+float,20,5);
     }
 }
 
-// 👾 敌人
 function drawEnemy(e){
+    let float=Math.sin(e.anim)*3;
 
-    let float = Math.sin(e.anim) * 3;
+    ctx.fillStyle="red";
+    ctx.fillRect(e.x,e.y+float,20,30);
 
-    ctx.fillStyle = "red";
-    ctx.fillRect(e.x, e.y + float, 20, 30);
-
-    ctx.fillStyle = "#ffe0bd";
-    ctx.fillRect(e.x+2, e.y-10 + float, 16, 15);
+    ctx.fillStyle="#ffe0bd";
+    ctx.fillRect(e.x+2,e.y-10+float,16,15);
 }
 
-// 🎯 血条
+function drawEffects(){
+    effects.forEach((ef,i)=>{
+        if(ef.type==="hit"){
+            ctx.fillStyle="orange";
+            ctx.fillRect(ef.x,ef.y,10,10);
+        }
+        if(ef.type==="dash"){
+            ctx.fillStyle="cyan";
+            ctx.fillRect(ef.x,ef.y,15,5);
+        }
+        ef.life=(ef.life||10)-1;
+        if(ef.life<=0) effects.splice(i,1);
+    });
+}
+
 function drawBar(x,y,hp,color){
     ctx.fillStyle="gray";
     ctx.fillRect(x,y,120,10);
@@ -89,35 +124,53 @@ function drawBar(x,y,hp,color){
     ctx.fillRect(x,y,hp,10);
 }
 
-// 🧠 更新
 function update(){
 
-    if(keys["a"]) player.x -= 3;
-    if(keys["d"]) player.x += 3;
+    if(keys["a"]) player.x-=3;
+    if(keys["d"]) player.x+=3;
 
-    // 动画计数
-    player.anim += 0.1;
-    enemy.anim += 0.1;
+    player.anim+=0.1;
+    enemy.anim+=0.1;
 
-    // 敌人AI
-    if(enemy.x > player.x) enemy.x -= 1;
-    else enemy.x += 1;
+    if(player.dashCD>0) player.dashCD--;
 
-    if(Math.abs(enemy.x - player.x) < 50){
-        player.hp -= 0.3;
+    // 敌人AI冲刺
+    if(enemy.dashCD<=0 && Math.abs(enemy.x-player.x)<200){
+        enemy.x += (player.x>enemy.x?1:-1)*80;
+        player.hp -= 10;
+        shake=10;
+        enemy.dashCD=150;
+    }else{
+        enemy.dashCD--;
     }
+
+    // 普通追踪
+    if(enemy.x > player.x) enemy.x-=1;
+    else enemy.x+=1;
 }
 
-// 🎨 绘制
 function draw(){
+
+    ctx.save();
+
+    // 屏幕震动
+    if(shake>0){
+        ctx.translate(Math.random()*5,Math.random()*5);
+        shake--;
+    }
 
     ctx.clearRect(0,0,800,400);
 
-    drawCharacter(player, "#00ffff");
+    drawCharacter(player,"cyan");
     drawEnemy(enemy);
+
+    drawEffects();
 
     drawBar(10,10,player.hp,"cyan");
     drawBar(650,10,enemy.hp,"red");
+
+    ctx.fillStyle="white";
+    ctx.fillText("技能CD:"+Math.floor(player.dashCD/10),10,30);
 
     if(player.hp<=0){
         ctx.fillStyle="red";
@@ -128,8 +181,10 @@ function draw(){
     if(enemy.hp<=0){
         ctx.fillStyle="yellow";
         ctx.font="30px sans-serif";
-        ctx.fillText("🎉 你赢了",330,200);
+        ctx.fillText("🎉 胜利！",330,200);
     }
+
+    ctx.restore();
 }
 
 function loop(){
