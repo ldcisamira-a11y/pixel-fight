@@ -2,13 +2,21 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>角色选择 PRO</title>
+<title>像素大战 · 角色版</title>
 <style>
-body { background:black; color:white; text-align:center; font-family:sans-serif; }
-canvas { background:#111; border:2px solid white; }
+body{
+    background:black;
+    color:white;
+    text-align:center;
+    font-family:sans-serif;
+}
+canvas{
+    background:#111;
+    border:2px solid white;
+}
 
-/* 🎴 角色卡片 */
-.card {
+/* 卡片 */
+.card{
     display:inline-block;
     margin:20px;
     padding:10px;
@@ -16,93 +24,65 @@ canvas { background:#111; border:2px solid white; }
     cursor:pointer;
     width:120px;
 }
-.card:hover {
+.card:hover{
     background:#222;
-}
-.card img {
-    width:80px;
 }
 </style>
 </head>
+
 <body>
 
-<h1>⚔️ 角色选择 PRO</h1>
+<h1>⚔️ 角色选择</h1>
 
 <div id="menu">
-    <button onclick="goSelect()">开始游戏</button>
+    <button onclick="startSelect()">开始游戏</button>
 </div>
 
 <div id="select" style="display:none;">
-    <h2>选择你的角色</h2>
+    <h2>选择角色</h2>
 
-    <div class="card" onclick="choose('warrior')">
-        <img src="https://i.imgur.com/GEXD7bk.png">
-        <p>🛡 战士</p>
-    </div>
-
-    <div class="card" onclick="choose('assassin')">
-        <img src="https://i.imgur.com/6X12K8F.png">
-        <p>⚡ 刺客</p>
-    </div>
-
-    <div class="card" onclick="choose('tank')">
-        <img src="https://i.imgur.com/8Qf6F0G.png">
-        <p>🧱 坦克</p>
-    </div>
-
+    <div class="card" onclick="choose('warrior')">🛡 战士</div>
+    <div class="card" onclick="choose('assassin')">⚡ 刺客</div>
+    <div class="card" onclick="choose('tank')">🧱 坦克</div>
 </div>
 
 <canvas id="game" width="800" height="400"></canvas>
 
 <div id="end" style="display:none;">
     <h2 id="result"></h2>
-    <button onclick="restart()">重新开始</button>
+    <button onclick="location.reload()">重新开始</button>
 </div>
 
 <script>
-const ctx = document.getElementById("game").getContext("2d");
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
 let state="menu";
-let player, enemy, playerImg;
+let player, enemy;
 
-function goSelect(){
+function startSelect(){
     state="select";
     document.getElementById("menu").style.display="none";
     document.getElementById("select").style.display="block";
 }
 
-// 🎮 角色选择
+// 🎮 角色创建（不用图片，直接画）
 function choose(type){
 
     if(type==="warrior"){
-        player = {x:100,y:250,hp:120,damage:10};
-        playerImg = "https://i.imgur.com/GEXD7bk.png";
+        player = {x:100,y:260,hp:120,damage:10,type:"warrior"};
     }
-
     if(type==="assassin"){
-        player = {x:100,y:250,hp:80,damage:20};
-        playerImg = "https://i.imgur.com/6X12K8F.png";
+        player = {x:100,y:260,hp:80,damage:20,type:"assassin"};
     }
-
     if(type==="tank"){
-        player = {x:100,y:250,hp:160,damage:8};
-        playerImg = "https://i.imgur.com/8Qf6F0G.png";
+        player = {x:100,y:260,hp:160,damage:8,type:"tank"};
     }
 
-    enemy = {x:600,y:250,hp:100};
-
-    player.img = new Image();
-    player.img.src = playerImg;
-
-    enemy.img = new Image();
-    enemy.img.src = "https://i.imgur.com/GEXD7bk.png";
+    enemy = {x:600,y:260,hp:100};
 
     state="game";
     document.getElementById("select").style.display="none";
-}
-
-function restart(){
-    location.reload();
 }
 
 let keys={};
@@ -121,56 +101,100 @@ document.addEventListener("keyup", e=>{
     keys[e.key]=false;
 });
 
+// 🎨 绘制角色（真正“模型感”）
+function drawPlayer(p){
+
+    if(p.type==="warrior"){
+        ctx.fillStyle="#3498db";
+        ctx.fillRect(p.x, p.y, 40, 50);
+
+        ctx.fillStyle="#2980b9";
+        ctx.fillRect(p.x+10, p.y-15, 20, 15);
+    }
+
+    if(p.type==="assassin"){
+        ctx.fillStyle="#9b59b6";
+        ctx.fillRect(p.x, p.y, 30, 45);
+
+        ctx.fillStyle="#8e44ad";
+        ctx.fillRect(p.x+5, p.y-10, 20, 10);
+    }
+
+    if(p.type==="tank"){
+        ctx.fillStyle="#2ecc71";
+        ctx.fillRect(p.x, p.y, 50, 60);
+
+        ctx.fillStyle="#27ae60";
+        ctx.fillRect(p.x+15, p.y-15, 20, 15);
+    }
+}
+
+// 👾 敌人
+function drawEnemy(e){
+    ctx.fillStyle="red";
+    ctx.fillRect(e.x, e.y, 40, 50);
+
+    ctx.fillStyle="darkred";
+    ctx.fillRect(e.x+10, e.y-15, 20, 15);
+}
+
+// 🧠 更新逻辑
 function update(){
+
     if(state!=="game") return;
 
-    if(keys["a"]) player.x-=3;
-    if(keys["d"]) player.x+=3;
+    if(keys["a"]) player.x -= 3;
+    if(keys["d"]) player.x += 3;
 
-    if(enemy.x>player.x) enemy.x-=1;
-    else enemy.x+=1;
+    // 敌人追踪
+    if(enemy.x > player.x) enemy.x -= 1;
+    else enemy.x += 1;
 
-    if(Math.abs(enemy.x-player.x)<50){
+    // 敌人攻击
+    if(Math.abs(enemy.x - player.x) < 50){
         player.hp -= 0.3;
     }
 
-    if(player.hp<=0){
+    // 判定
+    if(player.hp <= 0){
         endGame("💀 你输了");
     }
-    if(enemy.hp<=0){
+    if(enemy.hp <= 0){
         endGame("🎉 你赢了");
     }
 }
 
-function endGame(text){
-    state="end";
-    document.getElementById("end").style.display="block";
-    document.getElementById("result").innerText=text;
-}
-
+// 🎯 血条
 function drawBar(x,y,hp,color){
     ctx.fillStyle="gray";
     ctx.fillRect(x,y,120,10);
+
     ctx.fillStyle=color;
     ctx.fillRect(x,y,hp,10);
 }
 
+// 🎨 绘制
 function draw(){
 
     ctx.clearRect(0,0,800,400);
 
     if(state!=="game") return;
 
-    // 玩家（图片）
-    ctx.drawImage(player.img, player.x, player.y, 60, 60);
-
-    // 敌人
-    ctx.drawImage(enemy.img, enemy.x, enemy.y, 60, 60);
+    drawPlayer(player);
+    drawEnemy(enemy);
 
     drawBar(10,10,player.hp,"cyan");
-    drawBar(600,10,enemy.hp,"red");
+    drawBar(650,10,enemy.hp,"red");
 }
 
+// 🏁 结束
+function endGame(text){
+    state="end";
+    document.getElementById("end").style.display="block";
+    document.getElementById("result").innerText=text;
+}
+
+// 🔁 循环
 function loop(){
     update();
     draw();
